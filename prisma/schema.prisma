@@ -46,6 +46,9 @@ model User {
   follows Follow[]
   notifications Notification[]
 
+  @@index([email])
+  @@index([username])
+  @@index([role])
   @@map("users")
 }
 
@@ -59,6 +62,8 @@ model RefreshToken {
   userId String @map("user_id")
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
+  @@index([expiresAt])
   @@map("refresh_tokens")
 }
 
@@ -85,6 +90,11 @@ model Book {
 
   follows Follow[]
 
+  @@index([authorId])
+  @@index([status])
+  @@index([isPublished])
+  @@index([isPublished, status])
+  @@index([isPublished, createdAt])
   @@map("books")
 }
 
@@ -104,7 +114,11 @@ model Chapter {
   bookmarks Bookmark[]
   readingProgress ReadingProgress[]
 
+  @@index([bookId])
+  @@index([bookId, chapterNumber])
+  @@index([bookId, isPublished, chapterNumber])
   @@unique([bookId, chapterNumber])
+  @@map("chapters")
 }
 
 model Genre {
@@ -141,6 +155,7 @@ model Bookmark {
   chapterId String? @map("chapter_id")
   chapter Chapter? @relation(fields: [chapterId], references: [id], onDelete: Cascade)
 
+  @@index([userId, createdAt])
   @@unique([userId, bookId, chapterId])
   @@map("bookmarks")
 }
@@ -159,6 +174,7 @@ model ReadingProgress {
   chapterId String @map("chapter_id")
   chapter Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
 
+  @@index([userId, updatedAt])
   @@unique([userId, bookId])
   @@map("reading_progess")
 }
@@ -190,6 +206,9 @@ model Follow {
   bookId String @map("book_id")
   book Book @relation(fields: [bookId], references: [id], onDelete: Cascade)
 
+  @@index([bookId])
+  @@index([userId])
+  
   @@unique([userId, bookId])
   @@map("follows")
 } 
@@ -199,13 +218,15 @@ model Notification{
   type NotificationType
   title String
   message String
-  isRead Boolean
+  isRead Boolean @default(false) @map("is_read")
   metadata Json?
-  createdAt DateTime
+  createdAt DateTime @default(now()) @map("created_at")
 
   userId String @map("user_id")
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
   @@map("notifications")
 }
 

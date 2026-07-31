@@ -5,6 +5,7 @@ import type { CreateChapterDto, UpdateChapterDto, ChapterQuery } from "./chapter
 import { notificationService } from "../notification/notification.service.js";
 import { error } from "node:console";
 import { logger } from "../../utils/logger.js";
+import { TTL, cache, CacheKey } from "../../utils/cache.js";
 
 const WORDS_PER_PAGE = 1000
 
@@ -48,44 +49,32 @@ export class ChapterService{
             })
         }
 
+        await cache.delPattern(`books:${bookId}:chapters:*`)
+
         return chapter
     }
 
     async getChapters(bookId: string, query: ChapterQuery){
-        const book = await prisma.book.findUnique({
-            where: { id: bookId }
-        })
-
-        if(!book){
-            throw ApiError.notFound("Book not found")
-        }
-
         const page = Number(query.page) || 1
-        const limit = Number(query.limit) || 50
-        const skip = (page - 1) * limit
 
-        const [chapters, total] = await Promise.all([
-            prisma.chapter.findMany({
-                where: {bookId, isPublished: true},
-                skip,
-                take: limit,
-                orderBy: {chapterNumber: 'asc'},
-
-                select: {
-                    id: true,
-                    title: true,
-                    chapterNumber: true,
-                    wordCount: true,
-                    createdAt: true,
-                }
-            }),
-            prisma.chapter.count({ where: {bookId, isPublished:true}})
-        ])
-
-        return {
-            chapters,
-            pagination: {page, limit, total, totalPages: Math.ceil(total/limit)}
-        }
+        return cache.getOrSet(
+            CacheKey.bookChapters(bookId, page),
+            async () => {
+                const limit = Number(query.limit) || 50
+                const skip = (page - 1) * limit
+                const [chapters, total] = await Promise.all([
+                    prisma.chapter.findMany({
+                        where: { bookId, isPublished: true },
+                        skip, take: limit,
+                        orderBy: { chapterNumber: "asc" },
+                        select: { id: true, title: true, chapterNumber: true, wordCount: true, createdAt: true }
+                    }),
+                    prisma.chapter.count({ where: { bookId, isPublished: true }})
+                ])
+                return { chapters, pagination: { page, limit, total, totalPages: Math.ceil(total/limit)}}
+            },
+            TTL.MEDIUM
+        )
     }
 
     async readChapter(bookId: string, chapterNumber: number, page: number = 1) {
@@ -169,8 +158,14 @@ export class ChapterService{
 
         const updated = await prisma.chapter.update({ where: {id: chapterId}, data: updateData})
 
+        await cache.delPattern(`books:${chapter.bookId}:chapters:*`)
+        
         const justPublished = !chapter!.isPublished && updated.isPublished
         if(justPublished){
+            await Promise.all([
+                cache.del(CacheKey.bookDetails(chapter.book.slug)),
+                cache.del(CacheKey.trending()),
+            ])
             notificationService.notifyNewChapter(updated.bookId, updated.id).catch((err) => {
                 logger.error("Notify chapter failed:", err)
             })

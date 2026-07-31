@@ -1,5 +1,6 @@
 import prisma from "../../database/prisma.js"
 import { ApiError } from "../../utils/ApiError.js"
+import { CacheKey, TTL, cache } from "../../utils/cache.js"
 import { generateUniqueSlug } from "../../utils/slugGenerator.js"
 import type { CreateBookDto, UpdateBookDto, BookQuery } from "./book.dto.js"
 
@@ -41,65 +42,138 @@ export class BookService {
     async getBooks(query: BookQuery) {
         const page = Number(query.page) || 1
         const limit = Number(query.limit) || 20;
-        const skip = (page - 1) * limit
 
-        const where: Record<string, unknown> = {
-            isPublished: true
-        }
+        const filters = JSON.stringify({
+            status: query.status, genreId: query.genreId, authorId: query.authorId, search: query.search
+        })
 
-        if(query.status) where.status = query.status
-        if(query.authorId) where.authorId = query.authorId
-        if(query.genreId) {
-            where.genres = { some: { genreId: query.genreId }}
-        }
-        if(query.search) {
-            where.title = {contains: query.search, mode: "insensitive"}
-        }
+        return cache.getOrSet(
+            CacheKey.bookList(page, limit, filters),
+            async () => {
+                const skip = (page - 1) * limit
 
-        const [books, total] = await Promise.all([
-            prisma.book.findMany({
-                where,
-                skip,
-                take: limit,
-                orderBy: { createdAt: "desc" },
-                include: {
-                    author: { select: { id: true, username: true, avatar: true }},
-                    genres: { include: { genre: true }},
-                    _count: { select: { chapters: true }}
+                const where: Record<string, unknown> = {
+                    isPublished: true
                 }
-            }),
-            prisma.book.count({ where })
-        ])
 
-        return {
-            books,
-            pagination : {
-                page,
-                limit,
-                total,
-                totalPages: Math.ceil(total/limit)
-            }
-        }
+                if(query.status) where.status = query.status
+                if(query.authorId) where.authorId = query.authorId
+                if(query.genreId) {
+                    where.genres = { some: { genreId: query.genreId }}
+                }
+                if(query.search) {
+                    where.title = {contains: query.search, mode: "insensitive"}
+                }
+
+                const [books, total] = await Promise.all([
+                    prisma.book.findMany({
+                        where, skip, take: limit,
+                        orderBy: { createdAt: "desc" },
+                        include: {
+                            author: { select: { id: true, username: true, avatar: true }},
+                            genres: { include: { genre: true } },
+                            _count: { select: {chapters: {where: { isPublished: true } }, follows: true, reviews: true} }
+                        }
+                    }),
+                    prisma.book.count({ where })
+                ])
+
+                return { books, pagination: { page, limit, total, totalPages: Math.ceil(total/limit) } }
+            },
+
+            TTL.MEDIUM      
+        )
+        // const skip = (page - 1) * limit
+
+        // const where: Record<string, unknown> = {
+        //     isPublished: true
+        // }
+
+        // if(query.status) where.status = query.status
+        // if(query.authorId) where.authorId = query.authorId
+        // if(query.genreId) {
+        //     where.genres = { some: { genreId: query.genreId }}
+        // }
+        // if(query.search) {
+        //     where.title = {contains: query.search, mode: "insensitive"}
+        // }
+
+        // const [books, total] = await Promise.all([
+        //     prisma.book.findMany({
+        //         where,
+        //         skip,
+        //         take: limit,
+        //         orderBy: { createdAt: "desc" },
+        //         include: {
+        //             author: { select: { id: true, username: true, avatar: true }},
+        //             genres: { include: { genre: true }},
+        //             _count: { select: { chapters: true }}
+        //         }
+        //     }),
+        //     prisma.book.count({ where })
+        // ])
+
+        // return {
+        //     books,
+        //     pagination : {
+        //         page,
+        //         limit,
+        //         total,
+        //         totalPages: Math.ceil(total/limit)
+        //     }
+        // }
     }
 
     async getBookBySlug(slug: string) {
-        const book = await prisma.book.findUnique({
-            where: { slug: slug },
-            include: {
-                author: { select: { id: true, username: true, avatar: true }},
-                genres: { include: { genre: true }},
-                _count: { select: { chapters: true }},
-                chapters: {
-                    where: { isPublished: true },
-                    orderBy: { chapterNumber: "asc" },
-                    take: 3,
-                    select: { id: true, title: true, chapterNumber: true, createdAt: true }
-                }
-            }
-        })
 
-        if(!book) throw ApiError.notFound("Book not found")
-        return book
+        return cache.getOrSet(
+            CacheKey.bookDetails(slug),
+            async () => {
+                const book = await prisma.book.findUnique({
+                    where: { slug: slug },
+                    include: {
+                        author: { select: { id: true, username: true, avatar: true }},
+                        genres: { include: { genre: true }},
+                        _count: { select: {chapters: { where: {isPublished: true}} } },
+                        chapters: {
+                            where: {
+                                isPublished: true
+                            },
+                            orderBy: {
+                                chapterNumber: "asc"
+                            },
+                            take: 3,
+                            select: {
+                                id: true,
+                                title: true,
+                                chapterNumber: true,
+                                createdAt: true
+                            }
+                        }
+                    }
+                })
+                if(!book) throw ApiError.notFound("Book not found")
+                return book
+            },
+            TTL.MEDIUM
+        )
+        // const book = await prisma.book.findUnique({
+        //     where: { slug: slug },
+        //     include: {
+        //         author: { select: { id: true, username: true, avatar: true }},
+        //         genres: { include: { genre: true }},
+        //         _count: { select: { chapters: true }},
+        //         chapters: {
+        //             where: { isPublished: true },
+        //             orderBy: { chapterNumber: "asc" },
+        //             take: 3,
+        //             select: { id: true, title: true, chapterNumber: true, createdAt: true }
+        //         }
+        //     }
+        // })
+
+        // if(!book) throw ApiError.notFound("Book not found")
+        // return book
     }
 
     async updateBook(bookId: string, userId: string, userRole: string, data: UpdateBookDto){
@@ -141,6 +215,14 @@ export class BookService {
                 author: {select:{id: true, username:true}}
             }
         })
+        
+        await Promise.all([
+            cache.del(CacheKey.bookDetails(updated.slug)),
+            cache.delPattern('books:list:*'),
+            cache.del(CacheKey.similar(bookId)),
+            cache.del(CacheKey.trending()),
+        ])
+
         return updated
     }
 
@@ -159,6 +241,12 @@ export class BookService {
                 id: bookId
             }
         })
+
+        await Promise.all([
+            cache.del(CacheKey.bookDetails(book.slug)),
+            cache.delPattern("books:list:*"),
+            cache.del(CacheKey.trending())
+        ])
     }
 }
 

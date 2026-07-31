@@ -265,9 +265,9 @@ export type NotificationCreateInput = {
   type: $Enums.NotificationType
   title: string
   message: string
-  isRead: boolean
+  isRead?: boolean
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  createdAt: Date | string
+  createdAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutNotificationsInput
 }
 
@@ -276,9 +276,9 @@ export type NotificationUncheckedCreateInput = {
   type: $Enums.NotificationType
   title: string
   message: string
-  isRead: boolean
+  isRead?: boolean
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  createdAt: Date | string
+  createdAt?: Date | string
   userId: string
 }
 
@@ -309,9 +309,9 @@ export type NotificationCreateManyInput = {
   type: $Enums.NotificationType
   title: string
   message: string
-  isRead: boolean
+  isRead?: boolean
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  createdAt: Date | string
+  createdAt?: Date | string
   userId: string
 }
 
@@ -428,9 +428,9 @@ export type NotificationCreateWithoutUserInput = {
   type: $Enums.NotificationType
   title: string
   message: string
-  isRead: boolean
+  isRead?: boolean
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  createdAt: Date | string
+  createdAt?: Date | string
 }
 
 export type NotificationUncheckedCreateWithoutUserInput = {
@@ -438,9 +438,9 @@ export type NotificationUncheckedCreateWithoutUserInput = {
   type: $Enums.NotificationType
   title: string
   message: string
-  isRead: boolean
+  isRead?: boolean
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  createdAt: Date | string
+  createdAt?: Date | string
 }
 
 export type NotificationCreateOrConnectWithoutUserInput = {
@@ -488,9 +488,9 @@ export type NotificationCreateManyUserInput = {
   type: $Enums.NotificationType
   title: string
   message: string
-  isRead: boolean
+  isRead?: boolean
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  createdAt: Date | string
+  createdAt?: Date | string
 }
 
 export type NotificationUpdateWithoutUserInput = {
