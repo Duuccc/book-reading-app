@@ -3,6 +3,9 @@
 import "dotenv/config";
 import { defineConfig } from "prisma/config";
 
+console.log("DATABASE_URL:", process.env["DATABASE_URL"] ? "✅ có giá trị" : "❌ undefined");
+
+
 export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
