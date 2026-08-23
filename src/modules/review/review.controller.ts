@@ -12,7 +12,12 @@ export const createReview = asyncHandler(async (req, res) => {
 
 export const getBookReviews = asyncHandler(async (req, res) => {
     const result = await reviewService.getBookReviews(req.params.bookId as string, req.query)
-    return ApiResponse.paginated(res, result.reviews, result.pagination)
+    return res.status(200).json({
+        success: true,
+        data: result.reviews,
+        pagination: result.pagination,
+        stats: result.stats
+    })
 })
 
 export const updateReview = asyncHandler(async (req, res) => {

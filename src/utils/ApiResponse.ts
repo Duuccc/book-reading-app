@@ -16,12 +16,12 @@ export class ApiResponse {
             limit: number
             total: number
             totalPages: number
-        }
+        },
     ){
         return res.status(200).json({
             success: true,
             data,
-            pagination
+            pagination,
         })
     }
 }

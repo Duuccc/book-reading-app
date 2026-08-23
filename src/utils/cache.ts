@@ -9,7 +9,7 @@ export const TTL = {
 } as const
 
 export const CacheKey = {
-    bookList: (page: number, limit: number, filters: string) => `books:list:${page}:${limit}:${filters}`,
+    bookList: (page: number, limit: number, filters: string): string => `books:list:${page}:${limit}:${filters}`,
     bookDetails(slug: string) {
         return `books:detail:${slug}`
     },

@@ -21,3 +21,4 @@ export const getTrendingBooks = asyncHandler(async (req, res, next) => {
     const books = await recommendationService.getTrendingBooks()
     return ApiResponse.success(res, books)
 })
+
